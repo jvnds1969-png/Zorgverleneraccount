@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Zorgstart – Account zorgverlener</title>
+  <link rel="stylesheet" href="css/provider-form.css" />
+</head>
+
+<body>
+  <header class="topbar">
+    <div class="wrap topbar-row">
+      <a class="back" href="index.html">← Terug naar marketplace</a>
+
+      <div class="brand">
+        <div class="brand-title">🏠 Zorgstart</div>
+        <div class="brand-subtitle">Account zorgverlener</div>
+      </div>
+
+      <div class="actions">
+        <button id="btn-load" class="btn btn-outline" type="button">JSON importeren</button>
+        <input id="file-load" type="file" accept="application/json" hidden />
+        <button id="btn-download" class="btn btn-primary" type="button">Download JSON</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="wrap grid">
+    <!-- Form -->
+    <section class="panel">
+      <h1>Profiel invullen</h1>
+      <p class="hint">Vul dit één keer goed in. Rechts zie je meteen hoe je kaart er zal uitzien.</p>
+
+      <form id="provider-form">
+        <!-- A. Basis -->
+        <fieldset>
+          <legend>1) Basis</legend>
+
+          <label class="field">
+            <span>Weergavenaam (kaarttitel) *</span>
+            <input name="display_name" required placeholder="bv. Sarah Peeters of Delimeal" />
+          </label>
+
+          <label class="field">
+            <span>Type(s) *</span>
+            <div class="checks">
+              <label><input type="checkbox" name="types" value="thuisverpleging" /> Thuisverpleging</label>
+              <label><input type="checkbox" name="types" value="kinesitherapie" /> Kinesitherapie</label>
+              <label><input type="checkbox" name="types" value="gezinshulp" /> Gezinshulp</label>
+              <label><input type="checkbox" name="types" value="warme maaltijden" /> Warme maaltijden</label>
+              <label><input type="checkbox" name="types" value="hulpmiddelen" /> Hulpmiddelen</label>
+              <label><input type="checkbox" name="types" value="klusjesdienst" /> Klusjesdienst</label>
+            </div>
+            <small>Kies één of meerdere types. Expertise verschijnt alleen bij thuisverpleging.</small>
+          </label>
+
+          <label class="field">
+            <span>Korte pitch (max 120 tekens) *</span>
+            <input name="card_short_pitch" maxlength="120" required placeholder="bv. Onmiddellijke opstart mogelijk" />
+          </label>
+
+          <label class="field">
+            <span>Badge (rechtsboven op kaart)</span>
+            <select name="card_badge_right">
+              <option value="">— geen badge —</option>
+              <option>Onmiddellijk beschikbaar</option>
+              <option>Komt aan huis</option>
+              <option>Nieuw</option>
+              <option>Wachtlijst</option>
+            </select>
+          </label>
+
+          <label class="field inline">
+            <span>Geverifieerd label tonen</span>
+            <input type="checkbox" name="verified" />
+          </label>
+        </fieldset>
+
+        <!-- B. Regio -->
+        <fieldset>
+          <legend>2) Regio & beschikbaarheid</legend>
+
+          <label class="field">
+            <span>Actieve postcodes *</span>
+            <input name="postcodes" required placeholder="bv. 2000, 2018, 2600" />
+            <small>Komma-gescheiden. Dit is de belangrijkste matchingsvariabele.</small>
+          </label>
+
+          <label class="field">
+            <span>Opstart</span>
+            <select name="coverage_start">
+              <option value="">— kies —</option>
+              <option value="immediately">Onmiddellijk</option>
+              <option value="48h">Binnen 48 uur</option>
+              <option value="1w">Binnen 1 week</option>
+              <option value="appointment">Op afspraak</option>
+            </select>
+          </label>
+
+          <label class="field">
+            <span>Capaciteit</span>
+            <select name="coverage_capacity">
+              <option value="">— kies —</option>
+              <option value="available">Beschikbaar</option>
+              <option value="limited">Beperkt beschikbaar</option>
+              <option value="waitlist">Wachtlijst</option>
+            </select>
+          </label>
+        </fieldset>
+
+        <!-- C. Contact -->
+        <fieldset>
+          <legend>3) Contact</legend>
+
+          <label class="field">
+            <span>Telefoon</span>
+            <input name="phone" placeholder="+32 ..." />
+          </label>
+
+          <label class="field">
+            <span>E-mail</span>
+            <input name="email" type="email" placeholder="..." />
+          </label>
+
+          <label class="field">
+            <span>Website</span>
+            <input name="website" placeholder="https://..." />
+          </label>
+
+          <label class="field">
+            <span>Talen</span>
+            <input name="languages" placeholder="bv. NL, FR, EN" />
+          </label>
+        </fieldset>
+
+        <!-- D. Media -->
+        <fieldset>
+          <legend>4) Foto & logo</legend>
+
+          <label class="field">
+            <span>Foto URL (kaartfoto) *</span>
+            <input name="photo" required placeholder="bv. images/providers/jouwfoto.jpg of https://..." />
+            <small>Op GitHub: upload je foto naar <code>images/providers/</code>.</small>
+          </label>
+
+          <label class="field">
+            <span>Logo URL (optioneel)</span>
+            <input name="logo" placeholder="bv. images/logos/altrio.svg" />
+          </label>
+        </fieldset>
+
+        <!-- E. Thuisverpleging expertise -->
+        <fieldset id="tv-fieldset">
+          <legend>5) Thuisverpleging – expertise (chips/filters)</legend>
+          <p class="hint">Wordt enkel gebruikt als je Thuisverpleging aanvinkt.</p>
+
+          <div class="checks">
+            <label><input type="checkbox" name="tv_exp" value="algemene zorg" /> Algemene zorg & medicatie</label>
+            <label><input type="checkbox" name="tv_exp" value="wondzorg" /> Wondzorg</label>
+            <label><input type="checkbox" name="tv_exp" value="palliatief" /> Palliatief</label>
+            <label><input type="checkbox" name="tv_exp" value="opat" /> OPAT</label>
+            <label><input type="checkbox" name="tv_exp" value="diabetes" /> Diabetes</label>
+            <label><input type="checkbox" name="tv_exp" value="oncologie" /> Oncologie</label>
+            <label><input type="checkbox" name="tv_exp" value="tpn/picc" /> TPN / PICC</label>
+          </div>
+
+          <small>Deze waarden worden als chips op je kaart getoond en zijn filterbaar.</small>
+        </fieldset>
+
+        <!-- F. Tarief -->
+        <fieldset>
+          <legend>6) Tarief</legend>
+
+          <label class="field">
+            <span>Label op kaart (bv. “Geconventioneerd”) *</span>
+            <input name="pricing" required placeholder="Geconventioneerd / Niet geconventioneerd / Dagelijkse leveringen" />
+          </label>
+        </fieldset>
+
+        <!-- G. Lange beschrijving (voor detailpagina later) -->
+        <fieldset>
+          <legend>7) Toelichting (voor detailpagina)</legend>
+
+          <label class="field">
+            <span>Beschrijving dienstverlening (max 800 tekens)</span>
+            <textarea name="description_long" maxlength="800" rows="5" placeholder="Wat doe je precies? Voor wie? Wat mogen patiënten verwachten?"></textarea>
+          </label>
+        </fieldset>
+
+        <div class="form-actions">
+          <button id="btn-save-local" class="btn btn-outline" type="button">Bewaar lokaal</button>
+          <button class="btn btn-primary" type="submit">Update preview</button>
+        </div>
+
+        <p class="micro">
+          * = verplicht voor een volwaardige kaart. “Bewaar lokaal” slaat op in je browser (localStorage).
+        </p>
+      </form>
+    </section>
+
+    <!-- Preview -->
+    <aside class="panel preview">
+      <h2>Live preview</h2>
+      <div id="preview-slot"></div>
+
+      <h3>JSON output</h3>
+      <pre id="json-out" class="json"></pre>
+      <p class="micro">Deze JSON kan je kopiëren of downloaden en toevoegen aan <code>data/providers.json</code>.</p>
+    </aside>
+  </main>
+
+  <script src="js/provider-form.js"></script>
+</body>
+</html>
