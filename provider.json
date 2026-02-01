@@ -1,0 +1,244 @@
+const form = document.getElementById('provider-form');
+const previewSlot = document.getElementById('preview-slot');
+const jsonOut = document.getElementById('json-out');
+
+const btnDownload = document.getElementById('btn-download');
+const btnSaveLocal = document.getElementById('btn-save-local');
+
+const btnLoad = document.getElementById('btn-load');
+const fileLoad = document.getElementById('file-load');
+
+const tvFieldset = document.getElementById('tv-fieldset');
+
+init();
+
+function init(){
+  // load from localStorage if present
+  const saved = localStorage.getItem('zorgstart_provider_draft');
+  if (saved) {
+    try { hydrateForm(JSON.parse(saved)); } catch {}
+  }
+
+  // initial render
+  updatePreview();
+
+  // live updates
+  form.addEventListener('input', updatePreview);
+  form.addEventListener('change', updatePreview);
+
+  // submit (prevent reload)
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    updatePreview();
+  });
+
+  btnSaveLocal.addEventListener('click', () => {
+    const data = formToProvider();
+    localStorage.setItem('zorgstart_provider_draft', JSON.stringify(data, null, 2));
+    alert('Lokaal bewaard in je browser.');
+  });
+
+  btnDownload.addEventListener('click', () => {
+    const data = formToProvider();
+    downloadJson(data, `${safeFileName(data.display_name || 'provider')}.json`);
+  });
+
+  btnLoad.addEventListener('click', () => fileLoad.click());
+  fileLoad.addEventListener('change', handleImport);
+}
+
+function handleImport(e){
+  const file = e.target.files?.[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = () => {
+    try{
+      const data = JSON.parse(String(reader.result || ''));
+      hydrateForm(data);
+      updatePreview();
+      alert('JSON geïmporteerd.');
+    }catch(err){
+      console.error(err);
+      alert('Kon JSON niet lezen. Controleer het bestand.');
+    }
+  };
+  reader.readAsText(file);
+}
+
+function updatePreview(){
+  const provider = formToProvider();
+
+  // enable/disable tv expertise section based on type selection
+  const hasTv = (provider.types || []).includes('thuisverpleging');
+  tvFieldset.style.opacity = hasTv ? '1' : '.45';
+  tvFieldset.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+    cb.disabled = !hasTv;
+    if (!hasTv) cb.checked = false;
+  });
+
+  // render preview card
+  previewSlot.innerHTML = cardHTML(provider);
+
+  // render JSON
+  jsonOut.textContent = JSON.stringify(provider, null, 2);
+}
+
+function formToProvider(){
+  const fd = new FormData(form);
+
+  const types = getMulti('types');
+  const tvExp = getMulti('tv_exp');
+
+  const languages = (fd.get('languages') || '')
+    .toString()
+    .split(',')
+    .map(s => s.trim())
+    .filter(Boolean);
+
+  const postcodes = (fd.get('postcodes') || '')
+    .toString()
+    .split(',')
+    .map(s => s.trim())
+    .filter(Boolean);
+
+  const badgeRight = (fd.get('card_badge_right') || '').toString().trim();
+
+  // chips: for now use tv expertises as chips if tv selected
+  const chips = types.includes('thuisverpleging') ? tvExp.map(prettyExp) : [];
+
+  const provider = {
+    id: `prov_${Date.now()}`,
+    display_name: (fd.get('display_name') || '').toString().trim(),
+    types,
+    verified: fd.get('verified') === 'on',
+
+    contact: {
+      phone: (fd.get('phone') || '').toString().trim(),
+      email: (fd.get('email') || '').toString().trim(),
+      website: (fd.get('website') || '').toString().trim()
+    },
+
+    languages,
+
+    coverage: {
+      postcodes,
+      start: (fd.get('coverage_start') || '').toString().trim(),
+      capacity: (fd.get('coverage_capacity') || '').toString().trim()
+    },
+
+    media: {
+      photo: (fd.get('photo') || '').toString().trim(),
+      logo: (fd.get('logo') || '').toString().trim()
+    },
+
+    pricing: (fd.get('pricing') || '').toString().trim(),
+
+    description_long: (fd.get('description_long') || '').toString().trim(),
+
+    specialties: {
+      thuisverpleging: types.includes('thuisverpleging')
+        ? { expertises: tvExp }
+        : null
+    },
+
+    card: {
+      short_pitch: (fd.get('card_short_pitch') || '').toString().trim(),
+      badge_right: badgeRight,
+      chips
+    }
+  };
+
+  // clean empty logo
+  if (!provider.media.logo) delete provider.media.logo;
+
+  return provider;
+
+  function getMulti(name){
+    return Array.from(form.querySelectorAll(`input[name="${name}"]:checked`))
+      .map(i => (i.value || '').toString().trim().toLowerCase())
+      .filter(Boolean);
+  }
+}
+
+function cardHTML(p){
+  const name = esc(p.display_name || '—');
+  const photo = escAttr(p.media?.photo || '');
+  const logo = p.media?.logo ? escAttr(p.media.logo) : '';
+
+  const verified = p.verified ? `<span class="badge">✓ Geverifieerd</span>` : '';
+  const badge = p.card?.badge_right ? `<span class="badge-right ${p.card.badge_right === 'Nieuw' ? 'badge-new':''}">${esc(p.card.badge_right)}</span>` : '';
+  const chips = (p.card?.chips || []).slice(0, 6);
+
+  const tags = (p.languages || []).slice(0, 4);
+
+  return `
+    <article class="card">
+      <div class="card-img">
+        ${photo ? `<img src="${photo}" alt="${name}" loading="lazy" referrerpolicy="no-referrer">` : `<div style="height:210px;display:flex;align-items:center;justify-content:center;color:#666;font-weight:800;">Voeg foto URL toe</div>`}
+        ${verified}
+        ${badge}
+        ${chips.length ? `<div class="chips">${chips.map(c => `<span class="chip">${esc(c)}</span>`).join('')}</div>` : ``}
+        ${logo ? `<img class="group-logo" src="${logo}" alt="" onerror="this.style.display='none'">` : ``}
+      </div>
+
+      <div class="card-content">
+        <h3>${name}</h3>
+        <div class="meta">${esc(p.card?.short_pitch || '')}</div>
+        ${tags.length ? `<div class="tags">${tags.map(t => `<span>${esc(t)}</span>`).join('')}</div>` : ``}
+      </div>
+
+      <div class="card-footer">
+        <span class="price">${esc(p.pricing || '')}</span>
+        <button class="btn-cta" type="button">Contact</button>
+      </div>
+    </article>
+  `;
+}
+
+function downloadJson(obj, filename){
+  const blob = new Blob([JSON.stringify(obj, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+function hydrateForm(data){
+  // minimal hydration for main fields
+  setValue('display_name', data.display_name);
+  setCheckedMulti('types', data.types);
+  setValue('card_short_pitch', data.card?.short_pitch);
+  setValueSelect('card_badge_right', data.card?.badge_right);
+  setChecked('verified', !!data.verified);
+
+  setValue('postcodes', (data.coverage?.postcodes || []).join(', '));
+  setValueSelect('coverage_start', data.coverage?.start);
+  setValueSelect('coverage_capacity', data.coverage?.capacity);
+
+  setValue('phone', data.contact?.phone);
+  setValue('email', data.contact?.email);
+  setValue('website', data.contact?.website);
+  setValue('languages', (data.languages || []).join(', '));
+
+  setValue('photo', data.media?.photo);
+  setValue('logo', data.media?.logo);
+
+  setValue('pricing', data.pricing);
+  setValue('description_long', data.description_long);
+
+  const tvExp = data.specialties?.thuisverpleging?.expertises || [];
+  setCheckedMulti('tv_exp', tvExp);
+
+  function setValue(name, val){
+    const el = form.querySelector(`[name="${name}"]`);
+    if (el && typeof val === 'string') el.value = val;
+    if (el && typeof val === 'number') el.value = String(val);
+    if (el && (val === null || val === undefined)) el.value = '';
+  }
+  function setValueSelect(name, val){
+    const
